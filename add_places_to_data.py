@@ -1,10 +1,9 @@
 import requests
 from tqdm import tqdm
 import pandas as pd
+import sys
 
-API_KEY = 'AIzaSyDxzBQzQ5w18tBK2UQJU43X8plPKEyfpig'
-
-def main():
+def main(api_key):
     data = pd.read_csv('data/final_data.csv')
     latitudes = data['Latitude']
     longitudes = data['Longitude']
@@ -19,7 +18,7 @@ def main():
         for place in places:
             k[place] = []
             for lat, long in zip(latitudes, longitudes):
-                res = requests.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={},{}&radius={}&type={}&key=AIzaSyDxzBQzQ5w18tBK2UQJU43X8plPKEyfpig'.format(lat, long, radius, place))
+                res = requests.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={},{}&radius={}&type={}&key={}'.format(lat, long, radius, place, api_key))
                 k[place].append(len(res.json()['results']))
                 counter+=1
                 pbar.update(counter)
@@ -29,4 +28,4 @@ def main():
     data.to_csv('data/places.csv')
         
 if __name__=='__main__':
-    main()
+    main(sys.argv[1:])
