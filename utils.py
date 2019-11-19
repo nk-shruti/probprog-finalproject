@@ -250,7 +250,7 @@ def infer(X_nuts_train, y_nuts_train, model, guide, node1=None, node2=None,
     else:
         node1 = torch.tensor(node1).type(torch.long)
         node2 = torch.tensor(node2).type(torch.long)
-        if not month:
+        if month is None:
             for i in range(10000):
                 elbo = svi.step(
                     X_nuts_train, y_nuts_train, node1, node2,torch.tensor(
