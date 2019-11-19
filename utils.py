@@ -51,6 +51,9 @@ pyro.enable_validation(True)
 smoke_test = ('CI' in os.environ)
 pyro.set_rng_seed(1)
 
+BOOL_SPLIT_SPACE = 39
+OFFSET_SPACE = 2
+
 bs, o = None, None
 
 def data_csv(mode):
@@ -81,9 +84,9 @@ def get_data(data, features, bool_split, offset, has_time_data=False):
     zero_indices = len(zero_table)
 
     if one_indices < zero_indices:
-        zero_table = zero_table.sample(one_indices)
+        zero_table = zero_table.sample(one_indices, random_state=42)
     else:
-        one_table = one_table.sample(zero_indices)
+        one_table = one_table.sample(zero_indices, random_state=42)
 
     table = one_table.append(zero_table, ignore_index=True)
 
@@ -91,7 +94,7 @@ def get_data(data, features, bool_split, offset, has_time_data=False):
     df_y = table[target]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        df_X, df_y, test_size=0.2)
+        df_X, df_y, test_size=0.2, random_state=42)
     # Train Data
     X_np_train = normalize(np.array(X_train))
     y_np_train = np.array(y_train)
@@ -277,3 +280,70 @@ def get_corr(df, features):
     cb.ax.tick_params(labelsize=10)
     plt.title('Correlation Matrix', fontsize=10);
     return plt
+
+
+def heat_map(intersection_matrix):
+    fig, ax = plt.subplots()
+
+    min_val, max_val = 0, 15
+
+    ax.matshow(intersection_matrix, cmap=plt.cm.Blues)
+
+    for i in range(15):
+        for j in range(15):
+            c = intersection_matrix[j,i]
+            ax.text(i, j, str(c), va='center', ha='center')
+    
+def generate_base():
+    df = pd.read_csv("raw_data/census_block.csv")
+    df_flat_agg = pd.read_csv("raw_data/data.csv")
+    ct_set = set(list(df_flat_agg['CensusTract'].unique()))
+    df_census_block = pd.read_csv("data/census_block_loc.csv")
+    df_census_block['CensusTract'] = df_census_block.apply(lambda row : int(row['BlockCode'])//10000, axis=1)
+    df_census_block = df_census_block[df_census_block['CensusTract'].isin(ct_set)]
+    df_census_block = df_census_block[['Latitude','Longitude','CensusTract','BlockCode']]
+    df_census_block.to_csv('points.csv',index=False)
+    lats = df_census_block['Latitude']
+    longs = df_census_block['Longitude']
+    unique_lats = sorted(list(set(lats)))
+    lats = df_census_block['Latitude']
+    longs = df_census_block['Longitude']
+    unique_lats = sorted(list(set(lats)))
+    unique_longs = sorted(list(set(longs)))
+    pairs = set([(i,j) for (i,j) in zip(lats,longs)])
+    return df_census_block, unique_lats, unique_longs, pairs
+    
+def generate_nyc_neighbours():
+    _, unique_lats, unique_longs, pairs = generate_base()
+    matr = np.zeros((len(unique_lats), len(unique_longs)))
+    for lat_index, lat in enumerate(unique_lats):
+        for long_index, lon in enumerate(unique_longs):
+            if (lat, lon) in pairs:
+                matr[lat_index][long_index] += 1
+
+    heat_map(matr)  
+    
+def generate_crime_heatmap():
+    df_census_block, unique_lats, unique_longs, pairs = generate_base()
+    data = pd.read_csv('raw_data/all_features.csv')
+    df = pd.read_csv("raw_data/all_features.csv")
+    data['target'] = data.apply(lambda row : row['FELONY'] + row['MISDEMEANOR'] + row['VIOLATION'], axis=1)
+    data['target'] = data['target'].astype(int)
+    data['CensusTract'].astype('int32')
+    df_census_block['CensusTract'].astype('int32')
+    tract_lat_long = pd.DataFrame(df_census_block[['CensusTract', 'Latitude','Longitude']])
+    tract_crimes = pd.DataFrame(data[['CensusTract', 'target']])
+    tract_crimes = pd.DataFrame(data[['CensusTract', 'target']])
+    tract_crimes.groupby(['CensusTract']).sum().to_csv('temp.csv')
+    tract_crimes = pd.read_csv('temp.csv')
+    lat_long_crimes = pd.merge(tract_crimes, tract_lat_long)
+    lats = lat_long_crimes['Latitude']
+    longs = lat_long_crimes['Longitude']
+    pairs = set([(i,j) for (i,j) in zip(lats,longs)])
+    crime_map = np.zeros((len(unique_lats), len(unique_longs)))
+    for lat_index, lat in enumerate(unique_lats):
+        for long_index, lon in enumerate(unique_longs):
+            if (lat, lon) in pairs:
+                crimes = lat_long_crimes[(lat_long_crimes['Latitude'] == lat) &  (lat_long_crimes['Longitude'] == lon)]['target']
+                crime_map[lat_index][long_index] += crimes
+    heat_map(crime_map)
