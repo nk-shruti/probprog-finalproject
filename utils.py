@@ -58,9 +58,9 @@ bs, o = None, None
 
 def data_csv(mode):
     if mode == "only_space":
-        tab = pd.read_csv("only_space.csv")
+        tab = pd.read_csv("raw_data/only_space.csv")
     else:
-        tab = pd.read_csv("time_space.csv")
+        tab = pd.read_csv("raw_data/space_time.csv")
     return tab
 
 
