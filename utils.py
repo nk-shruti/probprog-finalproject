@@ -64,6 +64,7 @@ def data_csv(mode):
 def get_data(data, features, bool_split, offset, has_time_data=False):
     global bs
     global o
+    data['target'] = data.apply(lambda row : int(row['FELONY'] + row['MISDEMEANOR'] + row['VIOLATION']), axis=1)
     bs = bool_split
     o = offset
     target = 'binary_target'
@@ -106,14 +107,24 @@ def get_data(data, features, bool_split, offset, has_time_data=False):
     y_nuts_test = torch.from_numpy(y_np_test).type(torch.float32)
 
     if has_time_data:
-        months_train = torch.from_numpy(
-            np.array(
-                X_train['month'])).type(
-            torch.float32)
-        months_test = torch.from_numpy(
-            np.array(
-                X_test['month'])).type(
-            torch.float32)
+        if 'monthly_avg' in features:
+            months_train = torch.from_numpy(
+                np.array(
+                    X_train['monthly_avg'])).type(
+                torch.float32)
+            months_test = torch.from_numpy(
+                np.array(
+                    X_test['monthly_avg'])).type(
+                torch.float32)
+        else:
+            months_train = torch.from_numpy(
+                np.array(
+                    X_train['monthly_avg'])).type(
+                torch.float32)
+            months_test = torch.from_numpy(
+                np.array(
+                    X_test['monthly_avg'])).type(
+                torch.float32)
 
     return X_nuts_train, y_nuts_train, months_train, X_nuts_test, y_nuts_test, months_test
 
