@@ -126,8 +126,7 @@ def get_data(data, features, bool_split, offset, has_time_data=False):
                     X_test['monthly_avg'])).type(
                 torch.float32)
 
-    return X_nuts_train, y_nuts_train, months_train, X_nuts_test, y_nuts_test, months_test
-
+    return data, X_nuts_train, y_nuts_train, months_train, X_nuts_test, y_nuts_test, months_test
 
 def sep_data(row):
     if row['target'] >= bs + o:
@@ -268,3 +267,13 @@ def infer(X_nuts_train, y_nuts_train, model, guide, node1=None, node2=None,
                     logging.info("Elbo loss: {}".format(elbo))
 
     return svi, elbo_arr_1
+
+def get_corr(df, features):
+    f = plt.figure(figsize=(10, 10))
+    plt.matshow(df[features].corr(), fignum=f.number)
+    plt.xticks(range(df[features].shape[1]), df[features].columns, fontsize=14, rotation=90)
+    plt.yticks(range(df[features].shape[1]), df[features].columns, fontsize=14)
+    cb = plt.colorbar()
+    cb.ax.tick_params(labelsize=10)
+    plt.title('Correlation Matrix', fontsize=10);
+    return plt
