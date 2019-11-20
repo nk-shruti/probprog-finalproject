@@ -57,7 +57,7 @@ pycodestyle==2.5.0        # via flake8
 pyflakes==2.1.1           # via flake8
 pygments==2.4.2           # via ipython, jupyter-console, nbconvert, qtconsole
 pyparsing==2.4.2          # via matplotlib, packaging
-pyro-ppl==0.4.1
+pyro-ppl==1.0.0
 pyrsistent==0.15.4        # via jsonschema
 pytest-flake8==1.0.4
 pytest-runner==5.1
