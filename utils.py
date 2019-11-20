@@ -229,7 +229,7 @@ def infer(X_nuts_train, y_nuts_train, model, guide, node1=None, node2=None,
     else:
         node1 = torch.tensor(node1).type(torch.long)
         node2 = torch.tensor(node2).type(torch.long)
-        if not month:
+        if month is None:
             for i in range(10000):
                 elbo = svi.step(
                     X_nuts_train, y_nuts_train, node1, node2, torch.tensor(
@@ -357,7 +357,7 @@ def pickle_it(model_preds, y_preds, acc, preds, elbo, name):
         "acc": acc,
         "elbo_arr": elbo,
         "preds": preds}
-    with open("Results_shruti/" + name, "wb") as f:
+    with open("Results/" + name, "wb") as f:
         pickle.dump(d, f)
 
 
@@ -389,3 +389,11 @@ def confidence_positive(tnse_dict, model_preds_model_1):
     plt.scatter(x_positive[:, 0], x_positive[:, 1], c=[
                 (1 - y) / 256 for y in positives])
     plt.show()
+    
+def summary(samples):
+    site_stats = {}
+    for site_name, values in samples.items():
+        marginal_site = pd.DataFrame(values)
+        describe = marginal_site.describe(percentiles=[.05, 0.25, 0.5, 0.75, 0.95]).transpose()
+        site_stats[site_name] = describe[["mean", "std", "5%", "25%", "50%", "75%", "95%"]]
+    return site_stats
