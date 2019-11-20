@@ -39,7 +39,7 @@ from copy import deepcopy
 from imblearn.under_sampling import RandomUnderSampler
 import pickle
 from mpl_toolkits.mplot3d import Axes3D
-
+from sklearn.metrics import roc_curve, confusion_matrix
 
 pyro.set_rng_seed(1)
 # assert pyro.__version__.startswith('0.4.1')
@@ -53,6 +53,7 @@ pyro.set_rng_seed(1)
 
 BOOL_SPLIT_SPACE = 39
 OFFSET_SPACE = 2
+num_tracts = 2078
 
 bs, o = None, None
 
@@ -122,11 +123,11 @@ def get_data(data, features, bool_split, offset, has_time_data=False):
         else:
             months_train = torch.from_numpy(
                 np.array(
-                    X_train['monthly_avg'])).type(
+                    X_train['month'])).type(
                 torch.float32)
             months_test = torch.from_numpy(
                 np.array(
-                    X_test['monthly_avg'])).type(
+                    X_test['month'])).type(
                 torch.float32)
 
     return data, X_nuts_train, y_nuts_train, months_train, X_nuts_test, y_nuts_test, months_test
@@ -145,21 +146,21 @@ def predict(x, y, model, guide, node1=None, node2=None,
     posterior_pred_samples = pred(model=model, guide=guide, num_samples=num_samples)
     if not node1:
         sample_predictions = posterior_pred_samples.forward(
-            x, None, torch.tensor(x.shape[1]).type(torch.long))['obs']
+            x, None, torch.tensor(x.shape[1]).type(torch.long))
+        
     else:
-        if not month:
-            
+        if month is None:
             sample_predictions = posterior_pred_samples.forward(
-                x, None, node1, node2, torch.tensor(x.shape[1]).type(torch.long))['obs']
+                x, None, node1, node2, torch.tensor(x.shape[1]).type(torch.long))
         else:
             sample_predictions = posterior_pred_samples.forward(
                 x, None, node1, node2, torch.tensor(
                     x.shape[1]).type(
-                    torch.long), month)['obs']
-    mean_predictions = np.array(torch.mean(sample_predictions, axis=0))
+                    torch.long), month)
+    mean_predictions = np.array(torch.mean(sample_predictions['obs'], axis=0))
     y_pred = [i >= 0.5 for i in mean_predictions]
     acc = accuracy_score(y_pred, y)
-    return mean_predictions, y_pred, acc
+    return mean_predictions, y_pred, acc, sample_predictions
 
 
 def get_tnse_dict(X_nuts_train, X_nuts_test, perplexity=10):
@@ -179,6 +180,7 @@ def low_dim_2d(tnse_dict, labels, n_comp=2):
     plt.scatter(feature_vector[:, 0], feature_vector[:, 1], c=[
                 color_map[y] for y in labels])
     plt.show()
+
 
 
 def low_dim_3d(tnse_dict, labels, n_comp=3):
@@ -250,7 +252,7 @@ def infer(X_nuts_train, y_nuts_train, model, guide, node1=None, node2=None,
     else:
         node1 = torch.tensor(node1).type(torch.long)
         node2 = torch.tensor(node2).type(torch.long)
-        if month is None:
+        if not month:
             for i in range(10000):
                 elbo = svi.step(
                     X_nuts_train, y_nuts_train, node1, node2,torch.tensor(
@@ -296,7 +298,7 @@ def heat_map(intersection_matrix):
     
 def generate_base():
     df = pd.read_csv("raw_data/census_block.csv")
-    df_flat_agg = pd.read_csv("raw_data/data.csv")
+    df_flat_agg = pd.read_csv("raw_data/space_time.csv")
     ct_set = set(list(df_flat_agg['CensusTract'].unique()))
     df_census_block = pd.read_csv("data/census_block_loc.csv")
     df_census_block['CensusTract'] = df_census_block.apply(lambda row : int(row['BlockCode'])//10000, axis=1)
@@ -347,3 +349,41 @@ def generate_crime_heatmap():
                 crimes = lat_long_crimes[(lat_long_crimes['Latitude'] == lat) &  (lat_long_crimes['Longitude'] == lon)]['target']
                 crime_map[lat_index][long_index] += crimes
     heat_map(crime_map)
+
+def print_confusion_matrix(y_nuts_test, y_pred_model_1):
+    cm = confusion_matrix(y_nuts_test, y_pred_model_1)
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    sns.heatmap(cm, annot=True)
+    
+def pickle_it(model_preds,y_preds,acc,preds,elbo,name):
+    d = {"model_preds":model_preds, "y_pred":y_preds, "acc":acc, "elbo_arr":elbo, "preds":preds}
+    with open("Results_shruti/"+name,"wb") as f:
+        pickle.dump(d, f)
+
+def confidence_negative(tnse_dict, model_preds_model_1):
+    feature_vector = np.array(tnse_dict['2d']['test'])
+    model_preds_model_1 = np.array(model_preds_model_1)
+    positives=[]
+    x_positive=[]
+    for i in range(len(model_preds_model_1)):
+        if model_preds_model_1[i]<0.5:
+            positives.append(model_preds_model_1[i])
+            x_positive.append(feature_vector[i])
+    x_positive = np.array(x_positive)
+    plt.scatter(x_positive[:, 0], x_positive[:, 1], c=[
+                (y)/256 for y in positives])
+    plt.show()    
+
+def confidence_positive(tnse_dict, model_preds_model_1):
+    feature_vector = np.array(tnse_dict['2d']['test'])
+    model_preds_model_1 = np.array(model_preds_model_1)
+    positives=[]
+    x_positive=[]
+    for i in range(len(model_preds_model_1)):
+        if model_preds_model_1[i]>=0.5:
+            positives.append(model_preds_model_1[i])
+            x_positive.append(feature_vector[i])
+    x_positive = np.array(x_positive)
+    plt.scatter(x_positive[:, 0], x_positive[:, 1], c=[
+                (1-y)/256 for y in positives])
+    plt.show()    
