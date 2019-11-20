@@ -389,11 +389,14 @@ def confidence_positive(tnse_dict, model_preds_model_1):
     plt.scatter(x_positive[:, 0], x_positive[:, 1], c=[
                 (1 - y) / 256 for y in positives])
     plt.show()
-    
+
+
 def summary(samples):
     site_stats = {}
     for site_name, values in samples.items():
         marginal_site = pd.DataFrame(values)
-        describe = marginal_site.describe(percentiles=[.05, 0.25, 0.5, 0.75, 0.95]).transpose()
-        site_stats[site_name] = describe[["mean", "std", "5%", "25%", "50%", "75%", "95%"]]
+        describe = marginal_site.describe(
+            percentiles=[.05, 0.25, 0.5, 0.75, 0.95]).transpose()
+        site_stats[site_name] = describe[[
+            "mean", "std", "5%", "25%", "50%", "75%", "95%"]]
     return site_stats
